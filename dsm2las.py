@@ -1,6 +1,24 @@
 #! /usr/bin/env python3
 # -*- coding: <utf-8> -*-
 
+"""dsm2las.
+
+Usage:
+    dsm2las (-h | --help)
+    dsm2las --version
+    dsm2las <dsm_file> <las_file> [--scale=<sc>]
+
+Options:
+    -h --help           Show this screen.
+    --scale=<sc>        Scale [default: 1].
+    --version           Show version.
+
+"""
+
+__version__ = '0.1.0a1'
+
+
+import docopt
 
 from geo2d import GeoRaster
 
@@ -56,14 +74,18 @@ def dsm_to_las(dsm_file, las_file, scale=1):
 
 
 def main():
-    r = heightmap_to_pointcloud(
-        np.ones((100, 20, 1)),
-        [0, 10],
-        [.1, -.1],
-        1
+    arguments = docopt.docopt(
+        __doc__,
+        help=True,
+        version=__version__,
+        options_first=False
     )
-
-    print(r)
+    dsm_to_las(
+        arguments['<dsm_file>'],
+        arguments['<las_file>'],
+        float(arguments['--scale'])
+    )
+    
 
 if __name__ == '__main__':
     main()
