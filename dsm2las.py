@@ -23,15 +23,18 @@ import docopt
 from geo2d import GeoRaster
 
 import numpy as np
-from skimage.transform import rescale
 
-from laspy.file import File
-from laspy.header import Header
+import os
+import subprocess
+
+
+def rescale(image_array, scale=1):
+    return image_array[::scale, ::scale]
 
 
 def is_heightmap(image_array):
     w, h, *_ = image_array.shape
-    return image_array.size == w * h and image_array.dtype == np.float
+    return image_array.size == w * h and np.issubdtype(image_array.dtype, np.float)
 
 
 def heightmap_to_pointcloud(image_array, origin, pixel_size, scale=1):
@@ -40,8 +43,8 @@ def heightmap_to_pointcloud(image_array, origin, pixel_size, scale=1):
     else:
         return [
             (
-                origin[0] + pixel_size[0] * j,
-                origin[1] + pixel_size[1] * i,
+                origin[0] + pixel_size[0] * scale * j,
+                origin[1] + pixel_size[1] * scale * i,
                 height
             )
             for (i, j, *_), height in np.ndenumerate(
@@ -66,11 +69,30 @@ def dsm_to_pointcloud(dsm_file, scale=1):
     )
 
 
-def dsm_to_las(dsm_file, las_file, scale=1):
-    with File(las_file, mode='w', header=Header()) as las:
-        las.X, las.Y, las.Z = zip(
-            * dsm_to_pointcloud(dsm_file, scale)
+def dsm_to_lines(dsm_file, scale=1):
+    return [
+        ','.join([str(c) for c in coordinates])
+        for coordinates in dsm_to_pointcloud(
+            dsm_file,
+            scale
         )
+    ]
+
+def dsm_to_txt(dsm_file, txt_file, scale=1):
+    with open(txt_file, 'w') as txt:
+        txt.write(
+            '\n'.join(
+                dsm_to_lines(dsm_file, scale)
+            )
+        )
+
+
+def dsm_to_las(dsm_file, las_file, scale=1):
+    txt_file = os.path.splitext(las_file)[0] + '.txt'
+    dsm_to_txt(dsm_file, txt_file, scale)
+    subprocess.run(
+        ['txt2las', '-i', txt_file, '-o', las_file, '--parse', 'xyz']
+    )
 
 
 def main():
@@ -83,7 +105,7 @@ def main():
     dsm_to_las(
         arguments['<dsm_file>'],
         arguments['<las_file>'],
-        float(arguments['--scale'])
+        int(arguments['--scale'])
     )
     
 
